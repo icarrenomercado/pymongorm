@@ -343,6 +343,13 @@ class MongoCollectionBase(ABC):
         self._collection_name = Common.convert_collection_name(type(self).__name__)
         self._id = None
 
+    def __eq__(self, other):
+        for name, mongo_field in self._get_mongo_fields():
+            if mongo_field != getattr(other, name):
+                return False
+        
+        return True
+
     @property
     def collection_name(self):
         return self._collection_name

@@ -310,6 +310,12 @@ class TestMongoORM(unittest.TestCase):
         
         self.assertEqual(self._test_model.to_son(), son)
 
+    def test_mongo_collection_equals_mongo_collection(self):
+        other = TestPersonModel()
+        self.assertEqual(self._test_model, other)
+        other.age = other.age.value + 1
+        self.assertNotEqual(self._test_model, other)
+
     def test_repository_generic_type_cannot_be_empty(self):
         self.assertRaises(TypeError, lambda: MongoRepository(None, None))
 
@@ -320,7 +326,10 @@ class TestMongoORM(unittest.TestCase):
     def test_repository_generic_type_matches_concrete_type(self):
         mongo_repo = MongoRepository[TestAddress](mongomock.MongoClient('mongodb://localhost:27017/test_db'))
         self.assertEqual(TestAddress, mongo_repo._concrete_type)
-        
+    
+    def test_insert_one_should_find_one(self):
+        mongo_repo = MongoRepository[TestAddress](mongomock.MongoClient('mongodb://localhost:27017/test_db'))
+
     # @mongomock.patch(servers=(('localhost', 27017),))
     # def test_aaa(self):
     #     repository = MongoRepository(pymongo.MongoClient('mongodb://localhost:27017/test4'))
