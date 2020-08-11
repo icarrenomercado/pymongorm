@@ -315,6 +315,11 @@ class TestMongoORM(unittest.TestCase):
 
     def test_repository_generic_type_implements_collection_base(self):
         self.assertRaises(TypeError, lambda: MongoRepository[str](None, None))
+
+    @mongomock.patch(servers=(('localhost', 27017),))
+    def test_repository_generic_type_matches_concrete_type(self):
+        mongo_repo = MongoRepository[TestAddress](mongomock.MongoClient('mongodb://localhost:27017/test_db'))
+        self.assertEqual(TestAddress, mongo_repo._concrete_type)
         
     # @mongomock.patch(servers=(('localhost', 27017),))
     # def test_aaa(self):

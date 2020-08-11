@@ -438,12 +438,15 @@ def _checktype_class(func, T):
     def wrapper(self, *args, **kwargs):
         bound_type = T.__bound__
         if bound_type is not None:
-            concrete_type = get_orig_class(self, True)
-            if not hasattr(concrete_type, '__args__') or concrete_type.__args__ is None:
-                raise TypeError('A type of {} must be specified for class {}'.format(bound_type, type(self)))
-            else: #SHOULD I USE CLASS OR GETATTR??????????????????//
-                if not issubclass(concrete_type.__class__, bound_type):
-                    raise TypeError('A type of {} must be specified for class {}'.format(bound_type, type(self)))
+            orig_type = get_orig_class(self, True)
+            if not hasattr(orig_type, '__args__') or orig_type.__args__ is None:
+                raise TypeError('A subclass of {} must be specified for {}'.format(bound_type, type(self)))
+            else:
+                concrete_type = orig_type.__args__[0]
+                if not issubclass(concrete_type, bound_type):
+                    raise TypeError('Type {} is not valid. A subclass of {} must be specified for {}'.format(concrete_type, bound_type, type(self)))
+                else:
+                    self._concrete_type = concrete_type
         return func(self, *args, **kwargs)
     return wrapper
 
