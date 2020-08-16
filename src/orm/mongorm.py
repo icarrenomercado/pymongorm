@@ -521,8 +521,8 @@ class MongoRepository(Generic[TMongoCollection]):
     def find_one(self, filter, *args, **kwargs) -> TMongoCollection:
         result = self._get_collection().find_one(filter, *args, **kwargs)
 
-        if result:
-            print(result)
+        if result is None:
+            return None
 
         return self._concrete_type.from_dict(result)
 
@@ -531,12 +531,10 @@ class MongoRepository(Generic[TMongoCollection]):
         document._id = ObjectId(result.inserted_id)
         return result.inserted_id
 
-    # def insert_many(self, documents: typing.List[MongoCollectionBase], ordered=True):
-    #     son_documents = [document.to_son() for document in documents]
-    #     result = self._db.get_collection(model._collection_name).insert_many(document.to_son(), ordered)
-    #     for i, document in enumerate(documents):
-    #         documents[i]._id = ObjectId(result.inserted_ids[i])
-    #     return result.inserted_ids
+    def insert_many(self, documents: typing.List[MongoCollectionBase], ordered=True, bypass_document_validation=False):
+        son_documents = [document.to_son() for document in documents]
+        result = self._get_collection().insert_many(son_documents, ordered, bypass_document_validation)
+        return result.inserted_ids
 
 
 class TestCustomType(MongoFieldBase):

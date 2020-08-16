@@ -1,4 +1,5 @@
 import unittest
+import copy
 import datetime as dt
 import decimal
 import mongomock
@@ -143,11 +144,26 @@ class TestAddress(MongoCollectionBase):
     def __init__(self):
         super().__init__()
 
-        self._address = None
+        self._address = 'rue de Madrid'
+        self._house_number = 5
+        self._postcode = 'N226DJ'
+        self._property_value = decimal.Decimal('100.5')
 
     @string_field()
     def address(self):
         return self._address
+
+    @int_field()
+    def house_number(self):
+        return self._house_number
+
+    @string_field()
+    def postcode(self):
+        return self._postcode
+
+    @decimal_field()
+    def property_value(self):
+        return self._property_value
 
 class TestMongoORM(unittest.TestCase):
     def __init__(self, methodName):
@@ -297,7 +313,10 @@ class TestMongoORM(unittest.TestCase):
         son['insurance_number'] = 1234567890213434
         son['height'] = 1.82
         son['address'] = SON()
-        son['address']['address'] = None
+        son['address']['address'] = 'rue de Madrid'
+        son['address']['house_number'] = 5
+        son['address']['postcode'] = 'N226DJ'
+        son['address']['property_value'] = Decimal128('100.5')
         son['attributes'] = ['male', 'married', 'unemployed']
         son['hourly_rate'] = Decimal128('99.99')
         son['date_created'] = dt.datetime(2020, 7, 26, 23, 49)
@@ -328,11 +347,36 @@ class TestMongoORM(unittest.TestCase):
         self.assertEqual(TestAddress, mongo_repo._concrete_type)
     
     @mongomock.patch(servers=(('localhost', 27017),))
-    def test_insert_one_should_find_one(self):
+    def test_insert_one_should_match_id(self):
+        mongo_repo = MongoRepository[TestPersonModel](mongomock.MongoClient('mongodb://localhost:27017/test_db'))
+        inserted_id = mongo_repo.insert_one(self._test_model)
+        self.assertEqual(inserted_id, self._test_model.id.value)
+
+    @mongomock.patch(servers=(('localhost', 27017),))
+    def test_insert_many_should_match_ids(self):
+        mongo_repo = MongoRepository[TestPersonModel](mongomock.MongoClient('mongodb://localhost:27017/test_db'))
+        
+        ids = [ObjectId('5f2234f0a36b8cfba16e3f61'), ObjectId('5f2234f0a36b8cfba16e3f62'), ObjectId('5f2234f0a36b8cfba16e3f63')]
+        documents = [copy.copy(self._test_model), copy.copy(self._test_model), copy.copy(self._test_model)]
+        for i in range(len(documents)):
+            documents[i].id = ids[i]
+
+        inserted_ids = mongo_repo.insert_many(documents, ordered=True, bypass_document_validation=False)
+        self.assertEqual(inserted_ids, ids)
+
+    @mongomock.patch(servers=(('localhost', 27017),))
+    def test_find_one_query_should_return_one(self):
         mongo_repo = MongoRepository[TestPersonModel](mongomock.MongoClient('mongodb://localhost:27017/test_db'))
         mongo_repo.insert_one(self._test_model)
-        result = mongo_repo.find_one(self._test_model._id)
+        result = mongo_repo.find_one({'age': {'$gt': 25}})
         self.assertEqual(result, self._test_model)
+
+    @mongomock.patch(servers=(('localhost', 27017),))
+    def test_find_one_query_should_return_none(self):
+        mongo_repo = MongoRepository[TestPersonModel](mongomock.MongoClient('mongodb://localhost:27017/test_db'))
+        mongo_repo.insert_one(self._test_model)
+        result = mongo_repo.find_one({'age': {'$gt': 28}})
+        self.assertEqual(result, None)
 
     # @mongomock.patch(servers=(('localhost', 27017),))
     # def test_aaa(self):
