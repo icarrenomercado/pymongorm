@@ -195,7 +195,7 @@ class TestMongoORM(unittest.TestCase):
         self.assertEqual(Common.convert_field_name(text), 'this-is-a-field-name')
 
     def test_collection_name_matches_class_name(self):
-        self.assertEqual(self._test_model._collection_name, 'test_person_model')
+        self.assertEqual(self._test_model.get_collection_name(), 'test_person_model')
 
     def test_mongo_field_setter_matches_getter(self):
         self._test_model.name = 'Johnny'
@@ -327,8 +327,12 @@ class TestMongoORM(unittest.TestCase):
         mongo_repo = MongoRepository[TestAddress](mongomock.MongoClient('mongodb://localhost:27017/test_db'))
         self.assertEqual(TestAddress, mongo_repo._concrete_type)
     
+    @mongomock.patch(servers=(('localhost', 27017),))
     def test_insert_one_should_find_one(self):
-        mongo_repo = MongoRepository[TestAddress](mongomock.MongoClient('mongodb://localhost:27017/test_db'))
+        mongo_repo = MongoRepository[TestPersonModel](mongomock.MongoClient('mongodb://localhost:27017/test_db'))
+        mongo_repo.insert_one(self._test_model)
+        result = mongo_repo.find_one(self._test_model._id)
+        self.assertEqual(result, self._test_model)
 
     # @mongomock.patch(servers=(('localhost', 27017),))
     # def test_aaa(self):

@@ -15,7 +15,7 @@ from bson.timestamp import Timestamp
 from abc import ABC, abstractmethod
 from enum import Enum, IntEnum
 from functools import wraps
-from typing import TypeVar, Generic
+from typing import TypeVar, Generic, Callable
 from pymongo import MongoClient
 
 
@@ -337,35 +337,41 @@ def string_field(field_name=None):
 def timestamp_field(field_name=None):
     return FieldWrapper(TimestampField, field_name)
 
+class Filter():
+    pass
+
 class MongoCollectionBase(ABC):
     def __init__(self):
         super().__init__()
-        self._collection_name = Common.convert_collection_name(type(self).__name__)
+        #self._collection_name = Common.convert_collection_name(type(self).__name__)
         self._id = None
 
     def __eq__(self, other):
-        for name, mongo_field in self._get_mongo_fields():
+        for name, mongo_field in self._get_mongo_fields(self):
             if mongo_field != getattr(other, name):
                 return False
         
         return True
 
-    @property
-    def collection_name(self):
-        return self._collection_name
+    @classmethod  
+    def get_collection_name(cls):
+        if not hasattr(cls, '__collection_name') or cls.__collection_name is None:
+            cls.__collection_name = Common.convert_collection_name(cls.__name__)
+        return cls.__collection_name
 
     @property
     def id(self):
         return self._id
 
-    def _get_mongo_fields(self):
-        mongo_fields = inspect.getmembers(self, lambda m: isinstance(m, MongoFieldBase))
+    @staticmethod
+    def _get_mongo_fields(obj):
+        mongo_fields = inspect.getmembers(obj, lambda m: isinstance(m, MongoFieldBase))
         mongo_fields.sort(key=lambda m: m[1]._field_counter)
         return mongo_fields
 
     def to_son(self):
         son = SON()
-        for name, mongo_field in self._get_mongo_fields():
+        for name, mongo_field in self._get_mongo_fields(self):
             if isinstance(mongo_field, ObjectId) and mongo_field.primary_key:
                 self._id = mongo_field
             elif isinstance(mongo_field, EmbeddedDocumentField):
@@ -374,6 +380,19 @@ class MongoCollectionBase(ABC):
                 son[mongo_field.field_name] = mongo_field.to_mongo()
         
         return son
+
+    @classmethod
+    def from_dict(cls, document_dict):
+        collection = cls()
+        mongo_fields = dict()
+        for name, mongo_field in cls._get_mongo_fields(collection):
+            mongo_fields[mongo_field.field_name] = mongo_field
+
+        for key, value in document_dict.items():
+            mongo_field = mongo_fields[key]
+            mongo_field._value = value
+
+        return collection
 
 def is_Generic(tp):
     try:
@@ -496,15 +515,19 @@ class MongoRepository(Generic[TMongoCollection]):
         else:
             self._db = self._mongo_client.get_default_database()
 
-    def test(self):
-        return self
+    def _get_collection(self):
+        return self._db.get_collection(self._concrete_type.get_collection_name())
 
-    def find_one(self, test: TMongoCollection) -> TMongoCollection:
-        #print(test.to_son())
-        return test
+    def find_one(self, filter, *args, **kwargs) -> TMongoCollection:
+        result = self._get_collection().find_one(filter, *args, **kwargs)
+
+        if result:
+            print(result)
+
+        return self._concrete_type.from_dict(result)
 
     def insert_one(self, document: TMongoCollection):
-        result = self._db.get_collection(document._collection_name).insert_one(document.to_son())
+        result = self._get_collection().insert_one(document.to_son())
         document._id = ObjectId(result.inserted_id)
         return result.inserted_id
 
@@ -516,168 +539,146 @@ class MongoRepository(Generic[TMongoCollection]):
     #     return result.inserted_ids
 
 
-# class TestCustomType(MongoFieldBase):
-#     def __init__(self, value, field_name, *argv, **kwargs):
-#         super().__init__(value, field_name, MongoType.UNDEFINED)
+class TestCustomType(MongoFieldBase):
+    def __init__(self, value, field_name, *argv, **kwargs):
+        super().__init__(value, field_name, MongoType.UNDEFINED)
 
-#         self._test_param_str = kwargs['test_param_str']
-#         self._test_param_int = kwargs['test_param_int']
+        self._test_param_str = kwargs['test_param_str']
+        self._test_param_int = kwargs['test_param_int']
 
-#     def to_mongo(self):
-#         return self.value + self._test_param_str + str(self._test_param_int)
+    def to_mongo(self):
+        return self.value + self._test_param_str + str(self._test_param_int)
 
-# import decimal
+import decimal
 
-# class TestPersonModel(MongoCollectionBase):
-#     def __init__(self):
-#         super().__init__()
-#         self._id = ObjectId('5f2234f0a36b8cfba16e3f67')
-#         self._name = 'John'
-#         self._age = 28
-#         self._insurance_number = 1234567890213434
-#         self._height = 1.82
-#         self._address = TestAddress()
-#         self._attributes = ['male', 'married', 'unemployed']
-#         self._hourly_rate = decimal.Decimal('99.99')
-#         self._date_created = dt.datetime(2020, 7, 26, 23, 49)
-#         self._last_viewed = dt.datetime(2020, 7, 26, 00, 41)
-#         self._photo = bytearray('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'utf-8')
-#         self._account_enabled = True
-#         self._some_regex = 'ab*'
-#         self._custom_field = 'Hello'
+class TestPersonModel(MongoCollectionBase):
+    def __init__(self):
+        super().__init__()
+        self._name = 'John'
+        self._age = 28
+        self._insurance_number = 1234567890213434
+        self._height = 1.82
+        self._address = TestAddress()
+        self._attributes = ['male', 'married', 'unemployed']
+        self._hourly_rate = decimal.Decimal('99.99')
+        self._date_created = dt.datetime(2020, 7, 26, 23, 49)
+        self._last_viewed = dt.datetime(2020, 7, 26, 00, 41)
+        self._photo = bytearray('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'utf-8')
+        self._account_enabled = True
+        self._some_regex = 'ab*'
+        self._custom_field = 'Hello'
 
-#     @object_id_field(primary_key=True)
-#     def id(self):
-#         return self._id
+    @object_id_field(primary_key=True)
+    def id(self):
+        return self._id
 
-#     @id.setter
-#     def id(self, value):
-#         self._id = value
+    @string_field()
+    def name(self):
+        return self._name
 
-#     @string_field()
-#     def name(self):
-#         return self._name
+    @name.setter
+    def name(self, value):
+        self._name = value
 
-#     @name.setter
-#     def name(self, value):
-#         self._name = value
+    @int_field()
+    def age(self):
+        return self._age
 
-#     @int_field()
-#     def age(self):
-#         return self._age
+    @age.setter
+    def age(self, value):
+        self._age = value
 
-#     @age.setter
-#     def age(self, value):
-#         self._age = value
+    @long_field()
+    def insurance_number(self):
+        return self._insurance_number
 
-#     @long_field()
-#     def insurance_number(self):
-#         return self._insurance_number
+    @insurance_number.setter
+    def insurance_number(self, value):
+        self._insurance_number = value
 
-#     @insurance_number.setter
-#     def insurance_number(self, value):
-#         self._insurance_number = value
+    @float_field()
+    def height(self):
+        return self._height
 
-#     @float_field()
-#     def height(self):
-#         return self._height
+    @height.setter
+    def height(self, value):
+        self._height = value
 
-#     @height.setter
-#     def height(self, value):
-#         self._height = value
+    @embedded_document_field()
+    def address(self):
+        return self._address
 
-#     @embedded_document_field()
-#     def address(self):
-#         return self._address
+    @address.setter
+    def address(self, value):
+        self.address = value
 
-#     @address.setter
-#     def address(self, value):
-#         self.address = value
+    @list_field()
+    def attributes(self):
+        return self._attributes
 
-#     @list_field()
-#     def attributes(self):
-#         return self._attributes
+    @decimal_field()
+    def hourly_rate(self):
+        return self._hourly_rate
 
-#     @decimal_field()
-#     def hourly_rate(self):
-#         return self._hourly_rate
+    @hourly_rate.setter
+    def hourly_rate(self, value):
+        self.hourly_rate = value
 
-#     @hourly_rate.setter
-#     def hourly_rate(self, value):
-#         self.hourly_rate = value
+    @datetime_field()
+    def date_created(self):
+        return self._date_created
 
-#     @datetime_field()
-#     def date_created(self):
-#         return self._date_created
+    @date_created.setter
+    def date_created(self, value):
+        self._date_created = value
 
-#     @date_created.setter
-#     def date_created(self, value):
-#         self._date_created = value
+    @timestamp_field()
+    def last_modified(self):
+        pass
 
-#     @timestamp_field()
-#     def last_modified(self):
-#         pass
+    @timestamp_field()
+    def last_viewed(self):
+        return self._last_viewed
 
-#     @timestamp_field()
-#     def last_viewed(self):
-#         return self._last_viewed
+    @binary_field(BinaryField.Subtypes.DEFAULT_BINARY)
+    def photo(self):
+        return self._photo
 
-#     @binary_field(BinaryField.Subtypes.DEFAULT_BINARY)
-#     def photo(self):
-#         return self._photo
+    @boolean_field(field_name='test')
+    def account_enabled(self):
+        return self._account_enabled
 
-#     @boolean_field(field_name='test')
-#     def account_enabled(self):
-#         return self._account_enabled
+    @account_enabled.setter
+    def account_enabled(self, value):
+        self._account_enabled = value
 
-#     @account_enabled.setter
-#     def account_enabled(self, value):
-#         self._account_enabled = value
+    @regex_field()
+    def some_regex(self):
+        return self._some_regex
 
-#     @regex_field()
-#     def some_regex(self):
-#         return self._some_regex
+    @custom_field(TestCustomType, test_param_str='World', test_param_int=2020)
+    def custom_field(self):
+        return self._custom_field
 
-#     @custom_field(TestCustomType, test_param_str='World', test_param_int=2020)
-#     def custom_field(self):
-#         return self._custom_field
-
-#     @custom_field.setter
-#     def custom_field(self, value):
-#         self._custom_field = value
+    @custom_field.setter
+    def custom_field(self, value):
+        self._custom_field = value
     
-# class TestAddress(MongoCollectionBase):
-#     def __init__(self):
-#         super().__init__()
+class TestAddress(MongoCollectionBase):
+    def __init__(self):
+        super().__init__()
 
-#         self._address = None
+        self._address = "This is an interesting address"
 
-#     @string_field()
-#     def address(self):
-#         return self._address
+    @string_field()
+    def address(self):
+        return self._address
 
 
 
-# if __name__=='__main__':
-#     test_model = TestPersonModel()
-#     #print(test_model.account_enabled)
-#     test_model.account_enabled = True
-#     #print(test_model.account_enabled.value)
-#     #print(test_model.account_enabled)
-#     test_model.account_enabled = False
-#     #print(test_model.account_enabled.value)
-#     #repository = MongoRepository(MongoClient('mongodb://localhost:27017/test3'))
-#     #repository.insert_one(test_model)
+if __name__=='__main__':
+    test_model = TestPersonModel()
 
-#     a = MongoRepository[TestAddress](MongoClient(), 'test')
-#     a.find_one(TestAddress())
-
-#     class Parent: pass
-#     class Child(Parent): pass
-
-#     T = TypeVar('T', float, int)
-
-#     def foo(x: T) -> T: return x
-
-#     # Illegal, since ints are not subtypes of Parent
-#     foo(3)
+    repository = MongoRepository[TestPersonModel](MongoClient(), 'test5')
+    repository.insert_one(test_model)
+    repository.find_one(test_model.id.value)
