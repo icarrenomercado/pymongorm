@@ -349,20 +349,20 @@ class TestMongoORM(unittest.TestCase):
     @mongomock.patch(servers=(('localhost', 27017),))
     def test_insert_one_should_match_id(self):
         mongo_repo = MongoRepository[TestPersonModel](mongomock.MongoClient('mongodb://localhost:27017/test_db'))
-        inserted_id = mongo_repo.insert_one(self._test_model)
-        self.assertEqual(inserted_id, self._test_model.id.value)
+        result = mongo_repo.insert_one(self._test_model)
+        self.assertEqual(result.inserted_id, self._test_model.id.value)
 
     @mongomock.patch(servers=(('localhost', 27017),))
     def test_insert_many_should_match_ids(self):
         mongo_repo = MongoRepository[TestPersonModel](mongomock.MongoClient('mongodb://localhost:27017/test_db'))
-        
+
         ids = [ObjectId('5f2234f0a36b8cfba16e3f61'), ObjectId('5f2234f0a36b8cfba16e3f62'), ObjectId('5f2234f0a36b8cfba16e3f63')]
         documents = [copy.copy(self._test_model), copy.copy(self._test_model), copy.copy(self._test_model)]
         for i in range(len(documents)):
             documents[i].id = ids[i]
 
-        inserted_ids = mongo_repo.insert_many(documents, ordered=True, bypass_document_validation=False)
-        self.assertEqual(inserted_ids, ids)
+        result = mongo_repo.insert_many(documents, ordered=True)
+        self.assertEqual(result.inserted_ids, ids)
 
     @mongomock.patch(servers=(('localhost', 27017),))
     def test_find_one_query_should_return_one(self):
@@ -377,6 +377,23 @@ class TestMongoORM(unittest.TestCase):
         mongo_repo.insert_one(self._test_model)
         result = mongo_repo.find_one({'age': {'$gt': 28}})
         self.assertEqual(result, None)
+
+    @mongomock.patch(servers=(('localhost', 27017),))
+    def test_replace_one_should_replace_existing(self):
+        mongo_repo = MongoRepository[TestPersonModel](mongomock.MongoClient('mongodb://localhost:27017/test_db'))
+        mongo_repo.insert_one(self._test_model)
+        new_test_model = copy.copy(self._test_model)
+        result = mongo_repo.replace_one(self._test_model, new_test_model)
+        self.assertEqual(result.matched_count, 1)
+        self.assertEqual(result.modified_count, 1)
+
+    @mongomock.patch(servers=(('localhost', 27017),))
+    def test_replace_one_should_upsert_one(self):
+        mongo_repo = MongoRepository[TestPersonModel](mongomock.MongoClient('mongodb://localhost:27017/test_db'))
+        new_test_model = copy.copy(self._test_model)
+        result = mongo_repo.replace_one(self._test_model, new_test_model, upsert=True)
+        self.assertEqual(result.matched_count, 0)
+        self.assertEqual(result.upserted_id, new_test_model.id.value)
 
     # @mongomock.patch(servers=(('localhost', 27017),))
     # def test_aaa(self):

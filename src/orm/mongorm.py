@@ -529,12 +529,19 @@ class MongoRepository(Generic[TMongoCollection]):
     def insert_one(self, document: TMongoCollection):
         result = self._get_collection().insert_one(document.to_son())
         document._id = ObjectId(result.inserted_id)
-        return result.inserted_id
+        return result
 
-    def insert_many(self, documents: typing.List[MongoCollectionBase], ordered=True, bypass_document_validation=False):
+    def insert_many(self, documents: typing.List[MongoCollectionBase], ordered=True):
         son_documents = [document.to_son() for document in documents]
-        result = self._get_collection().insert_many(son_documents, ordered, bypass_document_validation)
-        return result.inserted_ids
+        result = self._get_collection().insert_many(son_documents, ordered)
+        return result
+
+    def replace_one(self, filter, document: TMongoCollection, upsert=False):
+        filter_dict = filter
+        if isinstance(filter_dict, MongoCollectionBase):
+            filter_dict = {'_id': filter.id.value}
+
+        return self._get_collection().replace_one(filter_dict, document.to_son(), upsert)
 
 
 class TestCustomType(MongoFieldBase):
