@@ -13,8 +13,8 @@ from bson.timestamp import Timestamp
 from orm.mongorm import *
 
 class TestCustomType(MongoFieldBase):
-    def __init__(self, value, field_name, *argv, **kwargs):
-        super().__init__(value, field_name, MongoType.UNDEFINED)
+    def __init__(self, value, field_name, skip_none, *argv, **kwargs):
+        super().__init__(value, field_name, skip_none, MongoType.UNDEFINED)
 
         self._test_param_str = kwargs['test_param_str']
         self._test_param_int = kwargs['test_param_int']
@@ -39,6 +39,7 @@ class TestPersonModel(MongoCollectionBase):
         self._account_enabled = True
         self._some_regex = 'ab*'
         self._custom_field = 'Hello'
+        self._empty_field = None
 
     @object_id_field(primary_key=True)
     def id(self):
@@ -139,6 +140,14 @@ class TestPersonModel(MongoCollectionBase):
     @custom_field.setter
     def custom_field(self, value):
         self._custom_field = value
+
+    @string_field(skip_none=True)
+    def empty_field(self):
+        return self._empty_field
+
+    @empty_field.setter
+    def empty_field(self, value):
+        self._empty_field = value
     
 class TestAddress(MongoCollectionBase):
     def __init__(self):
@@ -301,7 +310,7 @@ class TestMongoORM(unittest.TestCase):
     def test_mongo_custom_field_matches_property_type(self):
         self.assertEqual(self._test_model.custom_field.mongo_type, MongoType.UNDEFINED)
 
-    def test_mongo_custom_field_to_mongo_matches_custom_parameterss(self):
+    def test_mongo_custom_field_to_mongo_matches_custom_parameters(self):
         result = 'HelloWorld2020'
         self.assertEqual(self._test_model.custom_field.to_mongo(), result)
 
@@ -326,8 +335,41 @@ class TestMongoORM(unittest.TestCase):
         son['account_enabled'] = True
         son['some_regex'] = Regex('ab*', 0) 
         son['custom_field'] = 'HelloWorld2020'
+
+        print(son)
+
+        print(self._test_model.to_son())
         
         self.assertEqual(self._test_model.to_son(), son)
+
+    def test_skip_none_false_should_match_bson(self):
+        son = SON()
+        son['_id'] = ObjectId('5f2234f0a36b8cfba16e3f67')
+        son['name'] = 'John'
+        son['age'] = 28
+        son['insurance_number'] = 1234567890213434
+        son['height'] = 1.82
+        son['address'] = SON()
+        son['address']['address'] = 'rue de Madrid'
+        son['address']['house_number'] = 5
+        son['address']['postcode'] = 'N226DJ'
+        son['address']['property_value'] = Decimal128('100.5')
+        son['attributes'] = ['male', 'married', 'unemployed']
+        son['hourly_rate'] = Decimal128('99.99')
+        son['date_created'] = dt.datetime(2020, 7, 26, 23, 49)
+        son['last_modified'] = Timestamp(0, 0)
+        son['last_viewed'] = Timestamp(1595724060, 0)
+        son['photo'] = Binary(b'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 0)  
+        son['account_enabled'] = True
+        son['some_regex'] = Regex('ab*', 0) 
+        son['custom_field'] = 'HelloWorld2020'
+        son['empty_field'] = 'Not empty'
+
+
+        self._test_model.empty_field = 'Not empty'
+        self.assertEqual(self._test_model.to_son(), son)
+
+
 
     def test_mongo_collection_equals_mongo_collection(self):
         other = TestPersonModel()
@@ -394,6 +436,29 @@ class TestMongoORM(unittest.TestCase):
         result = mongo_repo.replace_one(self._test_model, new_test_model, upsert=True)
         self.assertEqual(result.matched_count, 0)
         self.assertEqual(result.upserted_id, new_test_model.id.value)
+
+    # @mongomock.patch(servers=(('localhost', 27017),))
+    # def test_update_one_should_update_one(self):
+    #     mongo_repo = MongoRepository[TestPersonModel](mongomock.MongoClient('mongodb://localhost:27017/test_db'))
+    #     mongo_repo.insert_one(self._test_model)
+    #     new_test_model = copy.copy(self._test_model)
+    #     new_test_model.name = 'maria'
+    #     new_test_model.height = 1.60
+    #     new_test_model.age = 50
+
+    #     result = mongo_repo.update_one(self._test_model, new_test_model)
+    #     self.assertEqual(result.matched_count, 1)
+    #     self.assertEqual(result.modified_count, 1)
+    #     updated = mongo_repo.find_one(new_test_model)
+    #     self.assertEqual(updated, new_test_model)
+
+    # @mongomock.patch(servers=(('localhost', 27017),))
+    # def test_update_one_should_upsert_one(self):
+    #     mongo_repo = MongoRepository[TestPersonModel](mongomock.MongoClient('mongodb://localhost:27017/test_db'))
+    #     new_test_model = copy.copy(self._test_model)
+    #     result = mongo_repo.update_one(self._test_model, new_test_model, upsert=True)
+    #     self.assertEqual(result.matched_count, 0)
+    #     self.assertEqual(result.upserted_id, new_test_model.id.value)
 
     # @mongomock.patch(servers=(('localhost', 27017),))
     # def test_aaa(self):
