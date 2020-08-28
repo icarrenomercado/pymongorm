@@ -174,6 +174,21 @@ class TestAddress(MongoCollectionBase):
     def property_value(self):
         return self._property_value
 
+class EmptyCollection(MongoCollectionBase):
+    def __init__(self, skip_none=False):
+        super().__init__(skip_none=skip_none)
+
+        self._id = ObjectId('2b2234f0a36b8cfba16e3f12')
+        self._test = None
+    
+    @object_id_field(primary_key=True)
+    def id(self):
+        return self._id
+
+    @string_field()
+    def test(self):
+        return self._test
+
 class TestMongoORM(unittest.TestCase):
     def __init__(self, methodName):
         super().__init__(methodName)
@@ -336,10 +351,6 @@ class TestMongoORM(unittest.TestCase):
         son['some_regex'] = Regex('ab*', 0) 
         son['custom_field'] = 'HelloWorld2020'
 
-        print(son)
-
-        print(self._test_model.to_son())
-        
         self.assertEqual(self._test_model.to_son(), son)
 
     def test_skip_none_false_should_match_bson(self):
@@ -365,11 +376,15 @@ class TestMongoORM(unittest.TestCase):
         son['custom_field'] = 'HelloWorld2020'
         son['empty_field'] = 'Not empty'
 
-
         self._test_model.empty_field = 'Not empty'
         self.assertEqual(self._test_model.to_son(), son)
 
+    def test_mongo_collection_skip_none_should_skip_fields(self):
+        son = SON()
+        son['_id'] = ObjectId('2b2234f0a36b8cfba16e3f12')
 
+        empty_collection = EmptyCollection(skip_none=True)
+        self.assertEqual(empty_collection.to_son(), son)
 
     def test_mongo_collection_equals_mongo_collection(self):
         other = TestPersonModel()

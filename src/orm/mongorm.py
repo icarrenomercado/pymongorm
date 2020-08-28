@@ -347,9 +347,10 @@ class Filter():
     pass
 
 class MongoCollectionBase(ABC):
-    def __init__(self):
+    def __init__(self, skip_none=False):
         super().__init__()
-        #self._collection_name = Common.convert_collection_name(type(self).__name__)
+        
+        self._skip_none = skip_none
         self._id = None
 
     def __eq__(self, other):
@@ -379,10 +380,10 @@ class MongoCollectionBase(ABC):
         son = SON()
         for name, mongo_field in self._get_mongo_fields(self):
 
-            if mongo_field.skip_none and mongo_field.value is None:
+            if (self._skip_none or mongo_field.skip_none) and mongo_field.value is None:
                 continue 
             elif isinstance(mongo_field, ObjectIdField) and mongo_field.primary_key:
-                self._id = mongo_field.value
+                son['_id'] = mongo_field.value
             elif isinstance(mongo_field, EmbeddedDocumentField):
                 son[mongo_field.field_name] = mongo_field.value.to_son()
             else:
