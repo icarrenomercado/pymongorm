@@ -452,6 +452,30 @@ class TestMongoORM(unittest.TestCase):
         self.assertEqual(result.matched_count, 0)
         self.assertEqual(result.upserted_id, new_test_model.id.value)
 
+    @mongomock.patch(servers=(('localhost', 27017),))
+    def test_delete_one_should_delete_one(self):
+        mongo_repo = MongoRepository[TestPersonModel](mongomock.MongoClient('mongodb://localhost:27017/test_db'))
+        mongo_repo.insert_one(self._test_model)
+        result = mongo_repo.delete_one(self._test_model)
+        self.assertEqual(result.deleted_count, 1)
+
+    @mongomock.patch(servers=(('localhost', 27017),))
+    def test_delete_many_should_delete_many(self):
+        mongo_repo = MongoRepository[TestPersonModel](mongomock.MongoClient('mongodb://localhost:27017/test_db'))
+        test_model_a = copy.copy(self._test_model)
+        test_model_a.id = ObjectId()
+        test_model_a.age = 50
+        test_model_b = copy.copy(self._test_model)
+        test_model_b.id = ObjectId()
+        test_model_b.age = 60
+        test_model_c = copy.copy(self._test_model)
+        test_model_c.id = ObjectId()
+        test_model_c.age = 70
+        mongo_repo.insert_many([test_model_a, test_model_b, test_model_c])
+        result = mongo_repo.delete_many({'age': {'$gt': 50}})
+        self.assertEqual(result.deleted_count, 2)
+
+
     # @mongomock.patch(servers=(('localhost', 27017),))
     # def test_update_one_should_update_one(self):
     #     mongo_repo = MongoRepository[TestPersonModel](mongomock.MongoClient('mongodb://localhost:27017/test_db'))

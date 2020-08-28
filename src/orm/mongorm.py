@@ -553,18 +553,15 @@ class MongoRepository(Generic[TMongoCollection]):
 
         return self._get_collection().replace_one(filter_d, document.to_son(), upsert)
 
-    def update_one(self, filter, update, upsert=False):
+    def delete_one(self, filter, hint=None):
         filter_d = filter
         if isinstance(filter_d, MongoCollectionBase):
             filter_d = {'_id': filter.id.value}
+        
+        return self._get_collection().delete_one(filter_d, hint=hint)
 
-        update_d = update
-
-        if isinstance(update_d, MongoCollectionBase):
-            update_d = {'$set:': update_d.to_son()}
-            print(update_d)
-
-        return self._get_collection().update_one(filter_d, update_d, upsert)
+    def delete_many(self, filter, hint=None):
+        return self._get_collection().delete_many(filter, hint=hint)
 
 
 class TestCustomType(MongoFieldBase):
