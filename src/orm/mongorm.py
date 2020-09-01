@@ -403,7 +403,7 @@ class MongoCollectionBase(ABC):
             mongo_field._value = value
 
         return collection
-
+    
 def is_Generic(tp):
     try:
         return isinstance(tp, typing.GenericMeta)
@@ -503,8 +503,6 @@ def _checktype_func(func, generic_type):
         return func(self, *args, **kwargs)
     return wrapper
 
-TMongoCollection = TypeVar('TMongoCollection', bound=MongoCollectionBase, covariant=False, contravariant=False)
-
 def check_mongo_collection_type(cls):
     cls.__init__ = _checktype_class(cls.__init__, TMongoCollection)
 
@@ -515,6 +513,26 @@ def check_mongo_collection_type(cls):
             setattr(cls, name, _checktype_func(func, generic_type))
 
     return cls
+
+TMongoCollection = TypeVar('TMongoCollection', bound=MongoCollectionBase, covariant=False, contravariant=False)
+
+@check_mongo_collection_type
+class QueryResult(Generic[TMongoCollection]):
+    def __init__(self, results):
+        self._results = results
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        pass
+
+    def count(self):
+        return 0
+
+    def all(self):
+        for item in self._results:
+            yield self._concrete_type.from_dict(result)
 
 @check_mongo_collection_type
 class MongoRepository(Generic[TMongoCollection]):
@@ -563,10 +581,13 @@ class MongoRepository(Generic[TMongoCollection]):
     def delete_many(self, filter, hint=None):
         return self._get_collection().delete_many(filter, hint=hint)
 
+    def find(self, filter):
+        return self._get_collection().find(filter)
+
 
 class TestCustomType(MongoFieldBase):
-    def __init__(self, value, field_name, *argv, **kwargs):
-        super().__init__(value, field_name, MongoType.UNDEFINED)
+    def __init__(self, value, field_name, skip_none: False, *argv, **kwargs):
+        super().__init__(value, field_name, skip_none, MongoType.UNDEFINED)
 
         self._test_param_str = kwargs['test_param_str']
         self._test_param_int = kwargs['test_param_int']
@@ -706,4 +727,5 @@ if __name__=='__main__':
 
     repository = MongoRepository[TestPersonModel](MongoClient(), 'test5')
     repository.insert_one(test_model)
-    repository.find_one(test_model.id.value)
+    result = repository.find({'_id': test_model.id.value})
+    print(result)
