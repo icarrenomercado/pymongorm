@@ -475,34 +475,20 @@ class TestMongoORM(unittest.TestCase):
         result = mongo_repo.delete_many({'age': {'$gt': 50}})
         self.assertEqual(result.deleted_count, 2)
 
-
-    # @mongomock.patch(servers=(('localhost', 27017),))
-    # def test_update_one_should_update_one(self):
-    #     mongo_repo = MongoRepository[TestPersonModel](mongomock.MongoClient('mongodb://localhost:27017/test_db'))
-    #     mongo_repo.insert_one(self._test_model)
-    #     new_test_model = copy.copy(self._test_model)
-    #     new_test_model.name = 'maria'
-    #     new_test_model.height = 1.60
-    #     new_test_model.age = 50
-
-    #     result = mongo_repo.update_one(self._test_model, new_test_model)
-    #     self.assertEqual(result.matched_count, 1)
-    #     self.assertEqual(result.modified_count, 1)
-    #     updated = mongo_repo.find_one(new_test_model)
-    #     self.assertEqual(updated, new_test_model)
-
-    # @mongomock.patch(servers=(('localhost', 27017),))
-    # def test_update_one_should_upsert_one(self):
-    #     mongo_repo = MongoRepository[TestPersonModel](mongomock.MongoClient('mongodb://localhost:27017/test_db'))
-    #     new_test_model = copy.copy(self._test_model)
-    #     result = mongo_repo.update_one(self._test_model, new_test_model, upsert=True)
-    #     self.assertEqual(result.matched_count, 0)
-    #     self.assertEqual(result.upserted_id, new_test_model.id.value)
-
-    # @mongomock.patch(servers=(('localhost', 27017),))
-    # def test_aaa(self):
-    #     repository = MongoRepository(pymongo.MongoClient('mongodb://localhost:27017/test4'))
-    #     repository.insert_one(self._test_model)
+    #@mongomock.patch(servers=(('localhost', 27017),))
+    def test_find_should_match_results(self):
+        mongo_repo = MongoRepository[TestPersonModel](pymongo.MongoClient('mongodb://localhost:27017/test_db'))
+        test_model_a = copy.copy(self._test_model)
+        test_model_a.id = ObjectId()
+        test_model_b = copy.copy(self._test_model)
+        test_model_b.id = ObjectId()
+        test_model_c = copy.copy(self._test_model)
+        test_model_c.id = ObjectId()
+        mongo_repo.insert_many([test_model_a, test_model_b, test_model_c])
+        result = mongo_repo.find(None)
+        for results in result:
+            print (result)
+  
 
 if __name__ == '__main__':
     unittest.main()

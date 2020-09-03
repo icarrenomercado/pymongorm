@@ -16,7 +16,7 @@ from abc import ABC, abstractmethod
 from enum import Enum, IntEnum
 from functools import wraps
 from typing import TypeVar, Generic, Callable
-from pymongo import MongoClient
+from pymongo.cursor import Cursor
 
 
 class Defaults:
@@ -343,8 +343,6 @@ def string_field(field_name=None, skip_none=False):
 def timestamp_field(field_name=None, skip_none=False):
     return FieldWrapper(TimestampField, field_name, skip_none)
 
-class Filter():
-    pass
 
 class MongoCollectionBase(ABC):
     def __init__(self, skip_none=False):
@@ -518,21 +516,20 @@ TMongoCollection = TypeVar('TMongoCollection', bound=MongoCollectionBase, covari
 
 @check_mongo_collection_type
 class QueryResult(Generic[TMongoCollection]):
-    def __init__(self, results):
-        self._results = results
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        pass
+    def __init__(self, cursor: Cursor):
+        self.__cursor = cursor
+        # https://github.com/mongodb/mongo-python-driver/blob/7e2790cc446b5023410429e3fe4272a8ad532e73/pymongo/cursor.py
+        # https://pymongo.readthedocs.io/en/stable/api/pymongo/cursor.html#pymongo.cursor.RawBatchCursor
+   
+    def __getitem__(self, index):
+        return self._concrete_type.from_dict(self.__cursor.__getitem__(index))
 
     def count(self):
-        return 0
+        return self.__cursor.count_documents()
 
-    def all(self):
-        for item in self._results:
-            yield self._concrete_type.from_dict(result)
+    # def all(self):
+    #     for item in self._results:
+    #         yield self._concrete_type.from_dict(result)
 
 @check_mongo_collection_type
 class MongoRepository(Generic[TMongoCollection]):
@@ -584,148 +581,3 @@ class MongoRepository(Generic[TMongoCollection]):
     def find(self, filter):
         return self._get_collection().find(filter)
 
-
-class TestCustomType(MongoFieldBase):
-    def __init__(self, value, field_name, skip_none: False, *argv, **kwargs):
-        super().__init__(value, field_name, skip_none, MongoType.UNDEFINED)
-
-        self._test_param_str = kwargs['test_param_str']
-        self._test_param_int = kwargs['test_param_int']
-
-    def to_mongo(self):
-        return self.value + self._test_param_str + str(self._test_param_int)
-
-import decimal
-
-class TestPersonModel(MongoCollectionBase):
-    def __init__(self):
-        super().__init__()
-        self._name = 'John'
-        self._age = 28
-        self._insurance_number = 1234567890213434
-        self._height = 1.82
-        self._address = TestAddress()
-        self._attributes = ['male', 'married', 'unemployed']
-        self._hourly_rate = decimal.Decimal('99.99')
-        self._date_created = dt.datetime(2020, 7, 26, 23, 49)
-        self._last_viewed = dt.datetime(2020, 7, 26, 00, 41)
-        self._photo = bytearray('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'utf-8')
-        self._account_enabled = True
-        self._some_regex = 'ab*'
-        self._custom_field = 'Hello'
-
-    @object_id_field(primary_key=True)
-    def id(self):
-        return self._id
-
-    @string_field()
-    def name(self):
-        return self._name
-
-    @name.setter
-    def name(self, value):
-        self._name = value
-
-    @int_field()
-    def age(self):
-        return self._age
-
-    @age.setter
-    def age(self, value):
-        self._age = value
-
-    @long_field()
-    def insurance_number(self):
-        return self._insurance_number
-
-    @insurance_number.setter
-    def insurance_number(self, value):
-        self._insurance_number = value
-
-    @float_field()
-    def height(self):
-        return self._height
-
-    @height.setter
-    def height(self, value):
-        self._height = value
-
-    @embedded_document_field()
-    def address(self):
-        return self._address
-
-    @address.setter
-    def address(self, value):
-        self.address = value
-
-    @list_field()
-    def attributes(self):
-        return self._attributes
-
-    @decimal_field()
-    def hourly_rate(self):
-        return self._hourly_rate
-
-    @hourly_rate.setter
-    def hourly_rate(self, value):
-        self.hourly_rate = value
-
-    @datetime_field()
-    def date_created(self):
-        return self._date_created
-
-    @date_created.setter
-    def date_created(self, value):
-        self._date_created = value
-
-    @timestamp_field()
-    def last_modified(self):
-        pass
-
-    @timestamp_field()
-    def last_viewed(self):
-        return self._last_viewed
-
-    @binary_field(BinaryField.Subtypes.DEFAULT_BINARY)
-    def photo(self):
-        return self._photo
-
-    @boolean_field(field_name='test')
-    def account_enabled(self):
-        return self._account_enabled
-
-    @account_enabled.setter
-    def account_enabled(self, value):
-        self._account_enabled = value
-
-    @regex_field()
-    def some_regex(self):
-        return self._some_regex
-
-    @custom_field(TestCustomType, test_param_str='World', test_param_int=2020)
-    def custom_field(self):
-        return self._custom_field
-
-    @custom_field.setter
-    def custom_field(self, value):
-        self._custom_field = value
-    
-class TestAddress(MongoCollectionBase):
-    def __init__(self):
-        super().__init__()
-
-        self._address = "This is an interesting address"
-
-    @string_field()
-    def address(self):
-        return self._address
-
-
-
-if __name__=='__main__':
-    test_model = TestPersonModel()
-
-    repository = MongoRepository[TestPersonModel](MongoClient(), 'test5')
-    repository.insert_one(test_model)
-    result = repository.find({'_id': test_model.id.value})
-    print(result)
