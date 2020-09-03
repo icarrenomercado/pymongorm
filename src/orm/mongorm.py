@@ -524,8 +524,37 @@ class QueryResult(Generic[TMongoCollection]):
     def __getitem__(self, index):
         return self._concrete_type.from_dict(self.__cursor.__getitem__(index))
 
+    def __enter__(self):
+        return self.__cursor.__enter__()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.__cursor.__exit__(exc_type, exc_val, exc_tb)
+
+    def next(self):
+        return self.__cursor.next()
+
+    __next__ = next
+
+    @property
+    def alive(self):
+        return self.__cursor.alive()
+
+    def comment(self, comment):
+        return self.__cursor.comment(comment)
+    
     def count(self):
         return self.__cursor.count_documents()
+
+    def explain(self):
+        return self.__cursos.explain()
+
+    def hint(self, index):
+        return self.__cursor.hint(index)
+
+    def where(self, code):
+        return self.__cursor.where(code)
+
+    
 
     # def all(self):
     #     for item in self._results:
