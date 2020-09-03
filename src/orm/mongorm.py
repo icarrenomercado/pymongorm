@@ -16,6 +16,7 @@ from abc import ABC, abstractmethod
 from enum import Enum, IntEnum
 from functools import wraps
 from typing import TypeVar, Generic, Callable
+from pymongo.mongo_client import MongoClient
 from pymongo.cursor import Cursor
 
 
@@ -554,12 +555,6 @@ class QueryResult(Generic[TMongoCollection]):
     def where(self, code):
         return self.__cursor.where(code)
 
-    
-
-    # def all(self):
-    #     for item in self._results:
-    #         yield self._concrete_type.from_dict(result)
-
 @check_mongo_collection_type
 class MongoRepository(Generic[TMongoCollection]):
     def __init__(self, mongo_client: MongoClient, db_name: str = None):
@@ -608,5 +603,4 @@ class MongoRepository(Generic[TMongoCollection]):
         return self._get_collection().delete_many(filter, hint=hint)
 
     def find(self, filter):
-        return self._get_collection().find(filter)
-
+        return QueryResult[self._concrete_type](self._get_collection().find(filter))
