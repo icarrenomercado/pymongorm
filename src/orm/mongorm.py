@@ -519,8 +519,6 @@ TMongoCollection = TypeVar('TMongoCollection', bound=MongoCollectionBase, covari
 class QueryResult(Generic[TMongoCollection]):
     def __init__(self, cursor: Cursor):
         self.__cursor = cursor
-        # https://github.com/mongodb/mongo-python-driver/blob/7e2790cc446b5023410429e3fe4272a8ad532e73/pymongo/cursor.py
-        # https://pymongo.readthedocs.io/en/stable/api/pymongo/cursor.html#pymongo.cursor.RawBatchCursor
    
     def __getitem__(self, index):
         return self._concrete_type.from_dict(self.__cursor.__getitem__(index))
@@ -531,6 +529,12 @@ class QueryResult(Generic[TMongoCollection]):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.__cursor.__exit__(exc_type, exc_val, exc_tb)
 
+    def __copy__(self):
+        return QueryResult(self.__cursor.__copy__())
+
+    def __deepcopy__(self, memo):
+        return QueryResult(self.__cursor.__deepcopy__(memo))
+
     def next(self):
         return self._concrete_type.from_dict(self.__cursor.next())
 
@@ -540,19 +544,31 @@ class QueryResult(Generic[TMongoCollection]):
     def alive(self):
         return self.__cursor.alive()
 
+    @property
+    def collection(self):
+        return self.__cursor.collection()
+
+    @property
+    def retrieved(self):
+        return self.__cursor.retrieved()
+
     def batch_size(self, batch_size):
-        return self.__cursor.batch_size(batch_size)
+        return self.__set_cursor_return_self(self.__cursor.batch_size, batch_size)
 
     def clone(self):
-        return self.__cursor.clone()
+        return self.__set_cursor_return_self(self.__cursor.clone)
 
     def comment(self, comment):
-        return self.__cursor.comment(comment)
+        return self.__set_cursor_return_self(self.__cursor.comment, comment)
     
-    def count(self, with_limit_and_skip=False):
-        return self.__cursor.count(with_limit_and_skip)
+    def count(self):
+        return self.collection.count_documents()
+
+    def distinct(self, key):
+        return self.__set_cursor_return_self(self.__cursor.distinct, key)
 
     def explain(self):
+        # TODO: This returns next
         return self.__cursor.explain()
 
     def hint(self, index):
@@ -571,6 +587,8 @@ class QueryResult(Generic[TMongoCollection]):
         return self.__cursor.rewind()
 
     def skip(self, skip):
+        self.__cursor == self.__cursor.skip(skip)
+
         return self.__cursor.skip(skip)
 
     def sort(self, key_or_list, direction=None):
@@ -578,6 +596,10 @@ class QueryResult(Generic[TMongoCollection]):
 
     def where(self, code):
         return self.__cursor.where(code)
+
+    def __set_cursor_return_self(self, f, *args, **kwargs):
+        self.__cursor = f(*args, **kwargs)
+        return self
 
 @check_mongo_collection_type
 class MongoRepository(Generic[TMongoCollection]):
