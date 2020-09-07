@@ -568,34 +568,31 @@ class QueryResult(Generic[TMongoCollection]):
         return self.__set_cursor_return_self(self.__cursor.distinct, key)
 
     def explain(self):
-        # TODO: This returns next
-        return self.__cursor.explain()
+        return self._concrete_type.from_dict(self.__cursor.explain())
 
     def hint(self, index):
-        return self.__cursor.hint(index)
+        return self.__set_cursor_return_self(self.__cursor.hint, index)
 
     def limit(self, limit):
-        return self.__cursor.limit(limit)
+        return self.__set_cursor_return_self(self.__cursor.limit)
 
     def max(self, spec):
-        return self.__cursor.max(spec)
+        return self.__set_cursor_return_self(self.__cursor.max, spec)
 
     def min(self, spec):
-        return self.__cursor.min(spec)
+        return self.__set_cursor_return_self(self.__cursor.min, spec)
 
     def rewind(self):
-        return self.__cursor.rewind()
+        return self.__set_cursor_return_self(self.__cursor.rewind)
 
     def skip(self, skip):
-        self.__cursor == self.__cursor.skip(skip)
-
-        return self.__cursor.skip(skip)
+        return self.__set_cursor_return_self(self.__cursor.skip, skip)
 
     def sort(self, key_or_list, direction=None):
-        return self.__cursor.sort(key_or_list, direction)
+        return self.__set_cursor_return_self(self.__cursor.sort, key_or_list, direction)
 
     def where(self, code):
-        return self.__cursor.where(code)
+        return self.__set_cursor_return_self(self.__cursor.where, code)
 
     def __set_cursor_return_self(self, f, *args, **kwargs):
         self.__cursor = f(*args, **kwargs)
