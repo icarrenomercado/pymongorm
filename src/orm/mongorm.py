@@ -532,7 +532,7 @@ class QueryResult(Generic[TMongoCollection]):
         self.__cursor.__exit__(exc_type, exc_val, exc_tb)
 
     def next(self):
-        return self.__cursor.next()
+        return self._concrete_type.from_dict(self.__cursor.next())
 
     __next__ = next
 
@@ -540,17 +540,41 @@ class QueryResult(Generic[TMongoCollection]):
     def alive(self):
         return self.__cursor.alive()
 
+    def batch_size(self, batch_size):
+        return self.__cursor.batch_size(batch_size)
+
+    def clone(self):
+        return self.__cursor.clone()
+
     def comment(self, comment):
         return self.__cursor.comment(comment)
     
-    def count(self):
-        return self.__cursor.count_documents()
+    def count(self, with_limit_and_skip=False):
+        return self.__cursor.count(with_limit_and_skip)
 
     def explain(self):
-        return self.__cursos.explain()
+        return self.__cursor.explain()
 
     def hint(self, index):
         return self.__cursor.hint(index)
+
+    def limit(self, limit):
+        return self.__cursor.limit(limit)
+
+    def max(self, spec):
+        return self.__cursor.max(spec)
+
+    def min(self, spec):
+        return self.__cursor.min(spec)
+
+    def rewind(self):
+        return self.__cursor.rewind()
+
+    def skip(self, skip):
+        return self.__cursor.skip(skip)
+
+    def sort(self, key_or_list, direction=None):
+        return self.__cursor.sort(key_or_list, direction)
 
     def where(self, code):
         return self.__cursor.where(code)
@@ -604,3 +628,4 @@ class MongoRepository(Generic[TMongoCollection]):
 
     def find(self, filter):
         return QueryResult[self._concrete_type](self._get_collection().find(filter))
+        

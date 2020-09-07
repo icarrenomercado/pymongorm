@@ -475,19 +475,23 @@ class TestMongoORM(unittest.TestCase):
         result = mongo_repo.delete_many({'age': {'$gt': 50}})
         self.assertEqual(result.deleted_count, 2)
 
-    #@mongomock.patch(servers=(('localhost', 27017),))
+    @mongomock.patch(servers=(('localhost', 27017),))
     def test_find_should_match_results(self):
-        mongo_repo = MongoRepository[TestPersonModel](pymongo.MongoClient('mongodb://localhost:27017/test_db'))
+        mongo_repo = MongoRepository[TestPersonModel](mongomock.MongoClient('mongodb://localhost:27017/test_db'))
         test_model_a = copy.copy(self._test_model)
-        test_model_a.id = ObjectId()
+        test_model_a.id = ObjectId('507f1f77bcf86cd799439010')
         test_model_b = copy.copy(self._test_model)
-        test_model_b.id = ObjectId()
+        test_model_b.id = ObjectId('507f1f77bcf86cd799439011')
         test_model_c = copy.copy(self._test_model)
-        test_model_c.id = ObjectId()
-        mongo_repo.insert_many([test_model_a, test_model_b, test_model_c])
-        result = mongo_repo.find(None)
-        for results in result:
-            print (result)
+        test_model_c.id = ObjectId('507f1f77bcf86cd799439012')
+        items = [test_model_a, test_model_b, test_model_c]
+        mongo_repo.insert_many(items)
+        cursor = mongo_repo.find(None).sort('_id')
+        results = []
+        for result in cursor:
+            results.append(result)
+        
+        self.assertListEqual(results, items)
   
 
 if __name__ == '__main__':
