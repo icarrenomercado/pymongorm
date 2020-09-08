@@ -414,7 +414,7 @@ class TestMongoORM(unittest.TestCase):
         mongo_repo = MongoRepository[TestPersonModel](mongomock.MongoClient('mongodb://localhost:27017/test_db'))
 
         ids = [ObjectId('5f2234f0a36b8cfba16e3f61'), ObjectId('5f2234f0a36b8cfba16e3f62'), ObjectId('5f2234f0a36b8cfba16e3f63')]
-        documents = [copy.copy(self._test_model), copy.copy(self._test_model), copy.copy(self._test_model)]
+        documents = [copy.deepcopy(self._test_model), copy.deepcopy(self._test_model), copy.deepcopy(self._test_model)]
         for i in range(len(documents)):
             documents[i].id = ids[i]
 
@@ -462,13 +462,13 @@ class TestMongoORM(unittest.TestCase):
     @mongomock.patch(servers=(('localhost', 27017),))
     def test_delete_many_should_delete_many(self):
         mongo_repo = MongoRepository[TestPersonModel](mongomock.MongoClient('mongodb://localhost:27017/test_db'))
-        test_model_a = copy.copy(self._test_model)
+        test_model_a = copy.deepcopy(self._test_model)
         test_model_a.id = ObjectId()
         test_model_a.age = 50
-        test_model_b = copy.copy(self._test_model)
+        test_model_b = copy.deepcopy(self._test_model)
         test_model_b.id = ObjectId()
         test_model_b.age = 60
-        test_model_c = copy.copy(self._test_model)
+        test_model_c = copy.deepcopy(self._test_model)
         test_model_c.id = ObjectId()
         test_model_c.age = 70
         mongo_repo.insert_many([test_model_a, test_model_b, test_model_c])
@@ -478,15 +478,16 @@ class TestMongoORM(unittest.TestCase):
     @mongomock.patch(servers=(('localhost', 27017),))
     def test_find_should_match_results(self):
         mongo_repo = MongoRepository[TestPersonModel](mongomock.MongoClient('mongodb://localhost:27017/test_db'))
-        test_model_a = copy.copy(self._test_model)
+        test_model_a = copy.deepcopy(self._test_model)
         test_model_a.id = ObjectId('507f1f77bcf86cd799439010')
-        test_model_b = copy.copy(self._test_model)
+        test_model_a.age = 11
+        test_model_b = copy.deepcopy(self._test_model)
         test_model_b.id = ObjectId('507f1f77bcf86cd799439011')
-        test_model_c = copy.copy(self._test_model)
+        test_model_c = copy.deepcopy(self._test_model)
         test_model_c.id = ObjectId('507f1f77bcf86cd799439012')
         items = [test_model_a, test_model_b, test_model_c]
         mongo_repo.insert_many(items)
-        cursor = mongo_repo.find(None).sort('_id')
+        cursor = mongo_repo.find({'age': 11}).sort('_id')
         results = []
         for result in cursor:
             results.append(result)
