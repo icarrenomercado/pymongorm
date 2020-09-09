@@ -394,12 +394,16 @@ class MongoCollectionBase(ABC):
     def from_dict(cls, document_dict):
         collection = cls()
         mongo_fields = dict()
-        for name, mongo_field in cls._get_mongo_fields(collection):
-            mongo_fields[mongo_field.field_name] = mongo_field
+        for name, mongo_field in collection._get_mongo_fields(collection):
+            mongo_field = collection.__getattribute__(name)
+            if mongo_field.field_name in document_dict
+                mongo_field = document_dict[mongo_field.field_name]
+        #     collection.__setattr__(name, )
+        #     mongo_fields[mongo_field.field_name] = mongo_field
 
-        for key, value in document_dict.items():
-            mongo_field = mongo_fields[key]
-            mongo_field._value = value
+        # for key, value in document_dict.items():
+        #     mongo_field = mongo_fields[key]
+        #     mongo_field._value = value
 
         return collection
     

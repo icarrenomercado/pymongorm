@@ -483,8 +483,10 @@ class TestMongoORM(unittest.TestCase):
         test_model_a.age = 11
         test_model_b = copy.deepcopy(self._test_model)
         test_model_b.id = ObjectId('507f1f77bcf86cd799439011')
+        test_model_b.age = 12
         test_model_c = copy.deepcopy(self._test_model)
         test_model_c.id = ObjectId('507f1f77bcf86cd799439012')
+        test_model_c.age = 25
         items = [test_model_a, test_model_b, test_model_c]
         mongo_repo.insert_many(items)
         cursor = mongo_repo.find({'age': 11}).sort('_id')
