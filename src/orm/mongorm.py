@@ -283,23 +283,60 @@ class FieldWrapper(object):
     def __init__(self, mongo_field_base_cls, field_name: None, skip_none=False, *args, **kwargs):
         FieldWrapper.__global_field_counter = FieldWrapper.__global_field_counter + 1
         self._mongo_field_base_cls = mongo_field_base_cls
+        self._mongo_field = None
         self._field_name = field_name
         self._skip_none = skip_none
         self._field_counter = FieldWrapper.__global_field_counter
         self._args = args
         self._kwargs = kwargs
+        self._func = None
 
     def __call__(self, func):
-        @property
+        self._func = func
+        print('aa')
         @wraps(func)
         def wrapper(*fargs, **fkwargs):
+            print(fargs)
+            print(fkwargs)
+            return self
+        return wrapper
+
+
+        # self._mongo_field = self._mongo_field_base_cls(func(*fargs, **fkwargs), f_name, self._skip_none, *self._args, **self._kwargs)
+        # self._mongo_field._field_counter = self._field_counter
+            
+        # print('hey')
+        # @property
+        # @wraps(func)
+        # def wrapper(*fargs, **fkwargs):
+        #     if self._mongo_field is not None:
+        #         self._mongo_field._value = func(*fargs, **fkwargs)
+        #         return self._mongo_field
+        #     f_name = self._field_name
+        #     if f_name is None:
+        #         f_name = self._func.__name__
+        #     self._mongo_field = self._mongo_field_base_cls(func(*fargs, **fkwargs), f_name, self._skip_none, *self._args, **self._kwargs)
+        #     self._mongo_field._field_counter = self._field_counter
+        #     return self._mongo_field
+        # return wrapper
+
+    def getter(self, *fargs, **fkwargs):
+        if self._mongo_field is None:
             f_name = self._field_name
             if f_name is None:
-                f_name = func.__name__
-            mongo_field = self._mongo_field_base_cls(func(*fargs, **fkwargs), f_name, self._skip_none, *self._args, **self._kwargs)
-            mongo_field._field_counter = self._field_counter
-            return mongo_field
-        return wrapper
+                f_name = self._func.__name__
+
+            self._mongo_field = self._mongo_field_base_cls(self._func(*fargs, **fkwargs), f_name, self._skip_none, *self._args, **self._kwargs)
+            self._mongo_field._field_counter = self._field_counter
+
+        return self._mongo_field
+
+    def setter(self, value):
+        self._mongo_field._value = self._func(value)
+
+            
+
+
         
 
 def binary_field(subtype: BinaryField.Subtypes = BinaryField.Subtypes.DEFAULT_BINARY, field_name=None, skip_none=False):
@@ -393,11 +430,11 @@ class MongoCollectionBase(ABC):
     @classmethod
     def from_dict(cls, document_dict):
         collection = cls()
-        mongo_fields = dict()
         for name, mongo_field in collection._get_mongo_fields(collection):
-            mongo_field = collection.__getattribute__(name)
-            if mongo_field.field_name in document_dict
-                mongo_field = document_dict[mongo_field.field_name]
+            mongo_field = getattr(collection, name)
+            if mongo_field.field_name in document_dict:
+                mongo_field._value = document_dict[mongo_field.field_name]
+                #setattr(collection, name, mongo_field)
         #     collection.__setattr__(name, )
         #     mongo_fields[mongo_field.field_name] = mongo_field
 

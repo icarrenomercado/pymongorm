@@ -189,6 +189,17 @@ class EmptyCollection(MongoCollectionBase):
     def test(self):
         return self._test
 
+class Temp(MongoCollectionBase):
+    def __init__(self):
+        super().__init__()
+        self._test = 1
+    @int_field()
+    def test(self):
+        return self._test
+    @test.setter
+    def test(self, value):
+        self._test = value
+
 class TestMongoORM(unittest.TestCase):
     def __init__(self, methodName):
         super().__init__(methodName)
@@ -391,6 +402,13 @@ class TestMongoORM(unittest.TestCase):
         self.assertEqual(self._test_model, other)
         other.age = other.age.value + 1
         self.assertNotEqual(self._test_model, other)
+
+
+        
+    def test_aaaaa(self):
+        temp = Temp()
+        temp.test = temp.test.value + 9
+        self.assertEqual(temp.test, 10)
 
     def test_repository_generic_type_cannot_be_empty(self):
         self.assertRaises(TypeError, lambda: MongoRepository(None, None))
