@@ -189,17 +189,6 @@ class EmptyCollection(MongoCollectionBase):
     def test(self):
         return self._test
 
-class Temp(MongoCollectionBase):
-    def __init__(self):
-        super().__init__()
-        self._test = 1
-    @int_field()
-    def test(self):
-        return self._test
-    @test.setter
-    def test(self, value):
-        self._test = value
-
 class TestMongoORM(unittest.TestCase):
     def __init__(self, methodName):
         super().__init__(methodName)
@@ -359,7 +348,7 @@ class TestMongoORM(unittest.TestCase):
         son['last_viewed'] = Timestamp(1595724060, 0)
         son['photo'] = Binary(b'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 0)  
         son['account_enabled'] = True
-        son['some_regex'] = Regex('ab*', 0) 
+        son['some_regex'] = Regex('ab*', 0)
         son['custom_field'] = 'HelloWorld2020'
 
         self.assertEqual(self._test_model.to_son(), son)
@@ -402,13 +391,6 @@ class TestMongoORM(unittest.TestCase):
         self.assertEqual(self._test_model, other)
         other.age = other.age.value + 1
         self.assertNotEqual(self._test_model, other)
-
-
-        
-    def test_aaaaa(self):
-        temp = Temp()
-        temp.test = temp.test.value + 9
-        self.assertEqual(temp.test, 10)
 
     def test_repository_generic_type_cannot_be_empty(self):
         self.assertRaises(TypeError, lambda: MongoRepository(None, None))
@@ -507,7 +489,7 @@ class TestMongoORM(unittest.TestCase):
         test_model_c.age = 25
         items = [test_model_a, test_model_b, test_model_c]
         mongo_repo.insert_many(items)
-        cursor = mongo_repo.find({'age': 11}).sort('_id')
+        cursor = mongo_repo.find(None).sort('_id')
         results = []
         for result in cursor:
             results.append(result)
